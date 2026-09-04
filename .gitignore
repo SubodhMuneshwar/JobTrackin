@@ -22,3 +22,13 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# ==========================================
+# .NET Build Artifacts (Do not commit)
+# ==========================================
+**/[Bb]in/
+**/[Oo]bj/
+**/bin/
+**/obj/
+*.user
+*.suo
