@@ -1,0 +1,73 @@
+using Microsoft.EntityFrameworkCore;
+using JobTrackin.Api.Domain.Entities;
+
+namespace JobTrackin.Api.Persistence;
+
+public class JobTrackinDbContext : DbContext
+{
+    public JobTrackinDbContext(DbContextOptions<JobTrackinDbContext> options) : base(options) { }
+
+    public DbSet<Application> Applications => Set<Application>();
+    public DbSet<ApplicationStatus> ApplicationStatuses => Set<ApplicationStatus>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // APPLICATION_STATUSES (Lookup table)
+        modelBuilder.Entity<ApplicationStatus>(b =>
+        {
+            b.ToTable("APPLICATION_STATUSES");
+            b.HasKey(s => s.Id);
+
+            b.Property(s => s.Id).HasMaxLength(50);
+            b.Property(s => s.Code).HasMaxLength(50).IsRequired();
+            b.Property(s => s.DisplayName).HasMaxLength(100).IsRequired();
+            b.Property(s => s.SortOrder).IsRequired();
+            b.Property(s => s.IsActive).IsRequired();
+
+            // Seed canonical status set
+            b.HasData(
+                new ApplicationStatus { Id = "SAVED", Code = "SAVED", DisplayName = "Saved", SortOrder = 1, IsActive = true },
+                new ApplicationStatus { Id = "APPLIED", Code = "APPLIED", DisplayName = "Applied", SortOrder = 2, IsActive = true },
+                new ApplicationStatus { Id = "UNDER_REVIEW", Code = "UNDER_REVIEW", DisplayName = "Under Review", SortOrder = 3, IsActive = true },
+                new ApplicationStatus { Id = "ASSESSMENT", Code = "ASSESSMENT", DisplayName = "Assessment", SortOrder = 4, IsActive = true },
+                new ApplicationStatus { Id = "INTERVIEW", Code = "INTERVIEW", DisplayName = "Interview Scheduled", SortOrder = 5, IsActive = true },
+                new ApplicationStatus { Id = "OFFER", Code = "OFFER", DisplayName = "Offer Received", SortOrder = 6, IsActive = true },
+                new ApplicationStatus { Id = "ACCEPTED", Code = "ACCEPTED", DisplayName = "Offer Accepted", SortOrder = 7, IsActive = true },
+                new ApplicationStatus { Id = "REJECTED", Code = "REJECTED", DisplayName = "Rejected", SortOrder = 8, IsActive = true },
+                new ApplicationStatus { Id = "WITHDRAWN", Code = "WITHDRAWN", DisplayName = "Withdrawn", SortOrder = 9, IsActive = true },
+                new ApplicationStatus { Id = "UNKNOWN", Code = "UNKNOWN", DisplayName = "Unknown", SortOrder = 10, IsActive = true }
+            );
+        });
+
+        // APPLICATIONS
+        modelBuilder.Entity<Application>(b =>
+        {
+            b.ToTable("APPLICATIONS");
+            b.HasKey(a => a.Id);
+
+            // Composite index for tenant isolation + newest-first dashboard sort
+            b.HasIndex(a => new { a.TenantId, a.AppliedAt });
+
+            b.Property(a => a.Company).HasMaxLength(255).IsRequired();
+            b.Property(a => a.RoleTitle).HasMaxLength(255).IsRequired();
+            b.Property(a => a.Location).HasMaxLength(255);
+            b.Property(a => a.CurrencyCode).HasMaxLength(10);
+            b.Property(a => a.JobUrl).HasMaxLength(2000);
+            b.Property(a => a.EmailReference).HasMaxLength(1000);
+
+            // Store Enums as strings for readability in Oracle SQL Developer
+            b.Property(a => a.JobType).HasConversion<string>().HasMaxLength(50);
+            b.Property(a => a.WorkMode).HasConversion<string>().HasMaxLength(50);
+            b.Property(a => a.ApplicationSource).HasConversion<string>().HasMaxLength(50);
+            b.Property(a => a.DiscoverySource).HasConversion<string>().HasMaxLength(50);
+
+            // Lookup relationship
+            b.HasOne(a => a.CurrentStatus)
+             .WithMany()
+             .HasForeignKey(a => a.CurrentStatusId)
+             .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+}
