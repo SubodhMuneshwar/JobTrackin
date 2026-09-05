@@ -1,22 +1,38 @@
+using Microsoft.EntityFrameworkCore;
+using JobTrackin.Api.Persistence;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
+// Controllers
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+
+// OpenAPI
 builder.Services.AddOpenApi();
+
+// Oracle + EF Core
+var oracleConnectionString =
+    builder.Configuration.GetConnectionString("Oracle")
+    ?? builder.Configuration["ORACLE_CONNECTION_STRING"];
+
+if (string.IsNullOrWhiteSpace(oracleConnectionString))
+{
+    throw new InvalidOperationException(
+        "Oracle connection string is not configured.");
+}
+
+builder.Services.AddDbContext<JobTrackinDbContext>(options =>
+{
+    options.UseOracle(oracleConnectionString);
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
-
-app.UseAuthorization();
 
 app.MapControllers();
 
